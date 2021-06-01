@@ -11,6 +11,10 @@ const userOrder = require("./userOrders");
 const foodData = require("./foodSchema");
 const restrauntModel = require("./restrauntSchema");
 const restrauntSchema = require("./restrauntSchema");
+const stripe = require("stripe")(
+  "pk_test_51Iae1bSDKl8GTPPMBASMWL68YHXFXhHrwmEWIGfDq4k51BpF1q6uX5FGjua0oAxHUkJeZV4FXqOKnPIbbD3dGsh500yPwIqif3"
+);
+
 
 app.use(express.json());
 app.use(cors());
@@ -49,6 +53,27 @@ app.post("/api", (req, res) => {
   });
 });
 
+app.post("/editUser", (req, res) => {
+  console.log(req.body);
+  console.log(req.body.id);
+  // if (req.body.firstName !== " ") {
+  // }
+  userData.findByIdAndUpdate(
+    { _id: req.body.id },
+    req.body,
+    {
+      useFindAndModify: false,
+    },
+    function (err, data) {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log("Updates Data " + data);
+      }
+    }
+  );
+});
+
 //User Login
 app.post("/login", (req, res) => {
   const email = req.body.email;
@@ -65,6 +90,12 @@ app.post("/login", (req, res) => {
   );
 });
 
+app.get("/users", (req, res) => {
+  userData.find({}, function (err, data) {
+    res.json(data);
+  });
+});
+
 //Send Reatraunt Menu
 app.get("/RestroFood", (req, res) => {
   foodData.find({}, function (err, data) {
@@ -77,6 +108,16 @@ app.get("/restraunts", (req, res) => {
   restrauntSchema.find({}, function (err, data) {
     res.json(data);
   });
+});
+
+//Delete Reatraunts
+app.delete("/restraunts", (req, res) => {
+  console.log("req body " + req.body.drestro);
+
+  restrauntSchema.findOneAndDelete(
+    { _id: req.body.drestro },
+    function (err, data) {}
+  );
 });
 
 //Send Restraunt Menu
@@ -109,13 +150,45 @@ app.post("/saveOrders", (req, res) => {
   );
 });
 
-//send user orders 
-app.post("/userOrders", (req, res) =>{
- 
-
-  USERORDERS.findOne({email:req.body.email},function (err, data) {
+//send user orders
+app.post("/userOrders", (req, res) => {
+  USERORDERS.findOne({ email: req.body.email }, function (err, data) {
     res.json(data);
+  });
+});
 
-  })
+//send userorders to admin
+app.get("/userOrders", (req, res) => {
+  USERORDERS.find({}, function (err, data) {
+    res.json(data);
+  });
+});
 
-})
+//Delete user
+app.delete("/users", (req, res) => {
+  console.log("req body " + req.body.dmail);
+
+  userData.findOneAndDelete({ email: req.body.dmail }, function (err, data) {});
+});
+
+//Delete user Orders
+app.delete("/userOrders", (req, res) => {
+  console.log("req body " + req.body.dmail);
+
+  USERORDERS.findOneAndDelete(
+    { email: req.body.dmail },
+    function (err, data) {}
+  );
+});
+
+app.post("/create-payment-intent", async (req, res) => {
+  const { items } = req.body;
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: calculateOrderAmount(items),
+    currency: "usd",
+  });
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
